@@ -63,7 +63,7 @@ public class UpdateHandler : IUpdateHandler
             }
             cmd = "/register";
         }
-        else if (user.Step == 0 && cmd == "Qoldirilgan kunlarni kiritish")
+        else if (user.Step == 0 && cmd == "Ishda bo'lmagan vaqtni kiritish")
         {
             cmd = "/calendar";
             user.Step++;
@@ -121,24 +121,31 @@ public class UpdateHandler : IUpdateHandler
 
             case 1:
                 {
-                    user.StartDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, int.Parse(update.CallbackQuery.Data));
-                    user.Step++;
-                    _unitOfWork.Save();
+                    if(int.TryParse(update.CallbackQuery.Data, out int res))
+                    {
+                        user.StartDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, res);
+                        user.Step++;
+                        _unitOfWork.Save();
 
-                    await _client.EditMessageReplyMarkupAsync(
-                           chatId: user.ChatId,
-                           messageId: update.CallbackQuery.Message.MessageId,
-                           replyMarkup: await GetTimePickerInlineKeyboard(user)
-                          );
+                        await _client.EditMessageReplyMarkupAsync(
+                               chatId: user.ChatId,
+                               messageId: update.CallbackQuery.Message.MessageId,
+                               replyMarkup: await GetTimePickerInlineKeyboard(user)
+                              );
 
 
-                    await _client.EditMessageTextAsync(
-                            chatId: user.ChatId,
-                            messageId: update.CallbackQuery.Message.MessageId,
-                            text: $"Choose the hour: {user.SelectedHour:00}:{user.SelectedMinute:00}",
-                            replyMarkup: await GetTimePickerInlineKeyboard(user)
-                                                       );
-
+                        await _client.EditMessageTextAsync(
+                                chatId: user.ChatId,
+                                messageId: update.CallbackQuery.Message.MessageId,
+                                text: $"Choose the hour: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+                                replyMarkup: await GetTimePickerInlineKeyboard(user)
+                                                           );
+                    }
+                    else
+                    {
+                        await _client.SendTextMessageAsync(user.ChatId, "Choose valid date");
+                    }
+                    
                     break;
                 }
             case 2:
@@ -148,24 +155,31 @@ public class UpdateHandler : IUpdateHandler
                 }
             case 3:
                 {
-                    user.EndDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, int.Parse(update.CallbackQuery.Data));
-                    user.Step++;
-                    _unitOfWork.Save();
+                    if(int.TryParse(update.CallbackQuery.Data, out int res))
+                    {
+                        user.EndDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, int.Parse(update.CallbackQuery.Data));
+                        user.Step++;
+                        _unitOfWork.Save();
 
-                    await _client.EditMessageReplyMarkupAsync(
-                           chatId: user.ChatId,
-                           messageId: update.CallbackQuery.Message.MessageId,
-                           replyMarkup: await GetTimePickerInlineKeyboard(user)
-                          );
+                        await _client.EditMessageReplyMarkupAsync(
+                               chatId: user.ChatId,
+                               messageId: update.CallbackQuery.Message.MessageId,
+                               replyMarkup: await GetTimePickerInlineKeyboard(user)
+                              );
 
 
-                    await _client.EditMessageTextAsync(
-                            chatId: user.ChatId,
-                            messageId: update.CallbackQuery.Message.MessageId,
-                            text: $"Choose the hour: {user.SelectedHour:00}:{user.SelectedMinute:00}",
-                            replyMarkup: await GetTimePickerInlineKeyboard(user)
-                                                       );
-
+                        await _client.EditMessageTextAsync(
+                                chatId: user.ChatId,
+                                messageId: update.CallbackQuery.Message.MessageId,
+                                text: $"Choose the hour: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+                                replyMarkup: await GetTimePickerInlineKeyboard(user)
+                                                           );
+                    }
+                    else
+                    {
+                        await _client.SendTextMessageAsync(user.ChatId, "Choose valid date");
+                    }
+               
                     break;
                 }
             case 4:
@@ -196,7 +210,7 @@ public class UpdateHandler : IUpdateHandler
                     }
 
                     inlineKeyboard = new InlineKeyboardMarkup(keyboardRows);
-                    var caption = "Select MissedDay Type:";
+                    var caption = "Ishda bo'lmagan vaqtingizning sababini tanlang:";
 
                     user.Step++;
                     _unitOfWork.Save();
@@ -276,12 +290,12 @@ public class UpdateHandler : IUpdateHandler
             inlineKeyboard.Add(weekRow.ToArray());
         }
 
-        var navigationRow = new[]
-        {
-            InlineKeyboardButton.WithCallbackData("<", $"prev-{month-1}"),
-            InlineKeyboardButton.WithCallbackData(">", $"next-{month+1}")
-        };
-        inlineKeyboard.Add(navigationRow);
+        //var navigationRow = new[]
+        //{
+        //    InlineKeyboardButton.WithCallbackData("<", $"prev-{month-1}"),
+        //    InlineKeyboardButton.WithCallbackData(">", $"next-{month+1}")
+        //};
+        //inlineKeyboard.Add(navigationRow);
 
         var inlineKeyboardMarkup = new InlineKeyboardMarkup(inlineKeyboard);
 
@@ -397,6 +411,9 @@ public class UpdateHandler : IUpdateHandler
                 await ProcessFinalTime(botClient, callbackQuery, user);
                 break;
             case "cancel-time":
+                user.SelectedHour = 0;
+                user.SelectedHour = 0;
+                _unitOfWork.Save();
 
                 break;
         }
