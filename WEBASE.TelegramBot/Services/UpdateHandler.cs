@@ -99,7 +99,7 @@ public class UpdateHandler : IUpdateHandler
             {
                new[]
                {
-                    new KeyboardButton("Qoldirilgan kunlarni kiritish"),
+                    new KeyboardButton("Ishda bo'lmagan vaqtni kiritish"),
                }
             };
             ReplyKeyboardMarkup markup = new(keys)
@@ -137,7 +137,7 @@ public class UpdateHandler : IUpdateHandler
                         await _client.EditMessageTextAsync(
                                 chatId: user.ChatId,
                                 messageId: update.CallbackQuery.Message.MessageId,
-                                text: $"Choose the hour: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+                                text: $"Vaqtini tanglang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
                                 replyMarkup: await GetTimePickerInlineKeyboard(user)
                                                            );
                     }
@@ -171,7 +171,7 @@ public class UpdateHandler : IUpdateHandler
                         await _client.EditMessageTextAsync(
                                 chatId: user.ChatId,
                                 messageId: update.CallbackQuery.Message.MessageId,
-                                text: $"Choose the hour: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+                                text: $"Vaqtini tanglang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
                                 replyMarkup: await GetTimePickerInlineKeyboard(user)
                                                            );
                     }
@@ -202,7 +202,7 @@ public class UpdateHandler : IUpdateHandler
                         currentRow.Add(InlineKeyboardButton.WithCallbackData(item.text,
                         item.value.ToString()));
 
-                        if (currentRow.Count == 2)
+                        if (currentRow.Count == 1)
                         {
                             keyboardRows.Add(new List<InlineKeyboardButton>(currentRow));
                             currentRow.Clear();
@@ -303,7 +303,7 @@ public class UpdateHandler : IUpdateHandler
         {
             await _client.SendTextMessageAsync(
                    chatId: user.ChatId,
-                   text: $"Please select a date: {new DateTime(year, month, 1).ToString("MMMM yyyy")}",
+                   text: $"Ishda bo'lmagan vaqtingizning boshlanish sanasini tanglang: {new DateTime(year, month, 1).ToString("MMMM yyyy")}",
                    replyMarkup: inlineKeyboardMarkup
                                              );
         }
@@ -318,7 +318,7 @@ public class UpdateHandler : IUpdateHandler
             await _client.EditMessageTextAsync(
                            chatId: user.ChatId,
                            messageId: callbackQuery.Message.MessageId,
-                           text: $"Please select a date: {new DateTime(year, month, 1).ToString("MMMM yyyy")}",
+                           text: $"Ishda bo'lmagan vaqtingizning tugash sanasini tanglang: {new DateTime(year, month, 1).ToString("MMMM yyyy")}",
                            replyMarkup: inlineKeyboardMarkup
                                                       );
 
@@ -423,7 +423,7 @@ public class UpdateHandler : IUpdateHandler
             await botClient.EditMessageTextAsync(
             chatId: callbackQuery.Message.Chat.Id,
             messageId: callbackQuery.Message.MessageId,
-            text: $"Choose the hour: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+            text: $"Vaqtini tanglang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
             replyMarkup: await GetTimePickerInlineKeyboard(user)
         );
 
