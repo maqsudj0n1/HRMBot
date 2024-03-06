@@ -121,7 +121,7 @@ public class UpdateHandler : IUpdateHandler
 
             case 1:
                 {
-                    if(int.TryParse(update.CallbackQuery.Data, out int res))
+                    if (int.TryParse(update.CallbackQuery.Data, out int res))
                     {
                         user.StartDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, res);
                         user.Step++;
@@ -145,7 +145,7 @@ public class UpdateHandler : IUpdateHandler
                     {
                         await _client.SendTextMessageAsync(user.ChatId, "Choose valid date");
                     }
-                    
+
                     break;
                 }
             case 2:
@@ -155,7 +155,7 @@ public class UpdateHandler : IUpdateHandler
                 }
             case 3:
                 {
-                    if(int.TryParse(update.CallbackQuery.Data, out int res))
+                    if (int.TryParse(update.CallbackQuery.Data, out int res))
                     {
                         user.EndDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, int.Parse(update.CallbackQuery.Data));
                         user.Step++;
@@ -179,7 +179,7 @@ public class UpdateHandler : IUpdateHandler
                     {
                         await _client.SendTextMessageAsync(user.ChatId, "Choose valid date");
                     }
-               
+
                     break;
                 }
             case 4:
@@ -231,19 +231,19 @@ public class UpdateHandler : IUpdateHandler
                     var res = await _employeeService.CreateByEmployee(new EmployeeCreateRequestDto()
                     {
                         EmployeeManageId = user.EmployeeId,
-                        EndAt = (DateTime)user.EndDate,
-                        StartAt = (DateTime)user.StartDate,
+                        EndAt = user.EndDate.Value,
+                        StartAt = user.StartDate.Value,
                         MissedDaysTypeId = (int)user.MissedDayTypeId,
                         WithoutReason = true,
                         MissedDays = (int)(user.EndDate - user.StartDate).Value.TotalDays,
 
                     });
-                    
-                    if(res != null)
+
+                    if (res != null)
                     {
 
                         await _client.DeleteMessageAsync(user.ChatId, update.CallbackQuery.Message.MessageId);
-                              
+
                         await _client.SendTextMessageAsync(user.ChatId, $"Muvoffaqiyatli saqlandi✅");
                         user.Step = 0;
                         _unitOfWork.Save();
@@ -277,13 +277,15 @@ public class UpdateHandler : IUpdateHandler
             var weekRow = new List<InlineKeyboardButton>();
             for (int dayOfWeek = 1; dayOfWeek <= 7; dayOfWeek++)
             {
-                int day = week * 7 + dayOfWeek - (int)new DateTime(year, month, 1).DayOfWeek;
+                int day = week * 7 + dayOfWeek - (int)new DateTime(year, month, 1).DayOfWeek + 1;
                 if (day > 0 && day <= daysInMonth)
                 {
                     weekRow.Add(InlineKeyboardButton.WithCallbackData(day.ToString(), $"{day}"));
                 }
                 else
                 {
+                    if (week == 5 && dayOfWeek == 1)
+                        break;
                     weekRow.Add(InlineKeyboardButton.WithCallbackData(" ", "ignore"));
                 }
             }

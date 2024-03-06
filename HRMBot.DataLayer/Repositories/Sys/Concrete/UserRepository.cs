@@ -30,20 +30,14 @@ namespace HRMBot.DataLayer.Repositories
         protected override void CreateValidate(CreateUserDlDto dto)
         {
             var query = DbSet.AsQueryable();
-            if (query.Any(a => a.UserName == dto.UserName))
-            {
-                AddError("Это имя пользователя занято", dto.UserName);
-            }
+           
             Validate(null, dto);
         }
 
         protected override void UpdateValidate(User entity, UpdateUserDlDto dto)
         {
             var query = DbSet.AsQueryable();
-            if (query.Any(a => a.Id != dto.Id && a.UserName == dto.UserName))
-            {
-                AddError("Это имя пользователя занято", dto.UserName);
-            }
+          
             Validate(entity, dto);
         }
 

@@ -32,7 +32,7 @@ public class EmployeeService : StatusGenericHandler, IEmployeeService
 
         var content = new StringContent(dtoJson, Encoding.UTF8, "application/json");
 
-        var response = await _httpClient.PostAsync($"http://crmtest-api.apptest.uz/EmployeeManage/GetEmployeeManageId?phoneNumber={phoneNumber}", content);
+        var response = await _httpClient.PostAsync($"https://crm-api.webase.uz/EmployeeManage/GetEmployeeManageId?phoneNumber={phoneNumber}", content);
 
         var responseContent = await response.Content.ReadAsStringAsync();
 
