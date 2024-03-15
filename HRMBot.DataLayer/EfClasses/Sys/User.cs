@@ -33,6 +33,10 @@ public partial class User : IHaveIdProp<long>, IHaveStateId
     public int? MissedDayTypeId { get; set; }
     [Column("is_employee")]
     public bool IsEmployee { get; set; }
+    [Column("details")]
+    public string? Details { get; set; }
+    [Column("is_first")]
+    public bool IsFirst { get; set; }
 
     [Column("last_access_time", TypeName = "timestamp without time zone")]
     public DateTime? LastAccessTime { get; set; }

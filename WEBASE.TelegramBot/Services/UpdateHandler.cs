@@ -124,6 +124,7 @@ public class UpdateHandler : IUpdateHandler
                     if (int.TryParse(update.CallbackQuery.Data, out int res))
                     {
                         user.StartDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, res);
+                        user.IsFirst = true;
                         user.Step++;
                         _unitOfWork.Save();
 
@@ -137,7 +138,23 @@ public class UpdateHandler : IUpdateHandler
                         await _client.EditMessageTextAsync(
                                 chatId: user.ChatId,
                                 messageId: update.CallbackQuery.Message.MessageId,
-                                text: $"Vaqtini tanglang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+                                text: $"Ishda bo'lmagan kuningizni boshlang'ich sanasi - {DateOnly.FromDateTime(user.StartDate.Value)}\nVaqtini tanlang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+                                replyMarkup: await GetTimePickerInlineKeyboard(user)
+                                                           );
+                    }
+                    else if (update.CallbackQuery.Data == "Back")
+                    {
+                        await _client.EditMessageReplyMarkupAsync(
+                            chatId: user.ChatId,
+                            messageId: update.CallbackQuery.Message.MessageId,
+                            replyMarkup: await GetTimePickerInlineKeyboard(user)
+                           );
+
+
+                        await _client.EditMessageTextAsync(
+                                chatId: user.ChatId,
+                                messageId: update.CallbackQuery.Message.MessageId,
+                                text: $"Ishda bo'lmagan kuningizni boshlang'ich sanasi - {DateOnly.FromDateTime(user.StartDate.Value)}\nVaqtini tanlang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
                                 replyMarkup: await GetTimePickerInlineKeyboard(user)
                                                            );
                     }
@@ -150,7 +167,7 @@ public class UpdateHandler : IUpdateHandler
                 }
             case 2:
                 {
-                    await HandleCallbackQuery(_client, update.CallbackQuery, user);
+                    await HandleCallbackQuery(_client, update, user);
                     break;
                 }
             case 3:
@@ -158,6 +175,7 @@ public class UpdateHandler : IUpdateHandler
                     if (int.TryParse(update.CallbackQuery.Data, out int res))
                     {
                         user.EndDate = new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, int.Parse(update.CallbackQuery.Data));
+                        user.IsFirst = false;
                         user.Step++;
                         _unitOfWork.Save();
 
@@ -171,9 +189,15 @@ public class UpdateHandler : IUpdateHandler
                         await _client.EditMessageTextAsync(
                                 chatId: user.ChatId,
                                 messageId: update.CallbackQuery.Message.MessageId,
-                                text: $"Vaqtini tanglang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+                                text: $"Ishda bo'lmagan vaqtingizning boshlanish sana va vaqti - {user.StartDate}\nIshda bo'lmagan vaqtingizning tugash sanasi - {DateOnly.FromDateTime(user.EndDate.Value)}\nVaqtini tanlang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
                                 replyMarkup: await GetTimePickerInlineKeyboard(user)
                                                            );
+                    }
+                    else if (update.CallbackQuery.Data == "Back")
+                    {
+                        user.Step--;
+                        _unitOfWork.Save();
+                        goto case 1;
                     }
                     else
                     {
@@ -184,7 +208,7 @@ public class UpdateHandler : IUpdateHandler
                 }
             case 4:
                 {
-                    await HandleCallbackQuery(_client, update.CallbackQuery, user);
+                    await HandleCallbackQuery(_client, update, user);
                     if (update.CallbackQuery.Data == "submit-time")
                         goto case 5;
                     else break;
@@ -208,9 +232,14 @@ public class UpdateHandler : IUpdateHandler
                             currentRow.Clear();
                         }
                     }
+                    var navigationRow = new[]
+                    {
+                           InlineKeyboardButton.WithCallbackData("Back⬅️", "Back"),
+                        };
+                    keyboardRows.Add(navigationRow.ToList());
 
                     inlineKeyboard = new InlineKeyboardMarkup(keyboardRows);
-                    var caption = "Ishda bo'lmagan vaqtingizning sababini tanlang:";
+                    var caption = $"Kiritilgan ma'lumot📋:\n{user.StartDate} - {user.EndDate}\nIshda bo'lmagan vaqtingizning sababini tanlang:";
 
                     user.Step++;
                     _unitOfWork.Save();
@@ -226,31 +255,58 @@ public class UpdateHandler : IUpdateHandler
                 }
             case 6:
                 {
-                    user.MissedDayTypeId = int.Parse(update.CallbackQuery.Data);
-                    _unitOfWork.Save();
-                    var res = await _employeeService.CreateByEmployee(new EmployeeCreateRequestDto()
+                    if (update.CallbackQuery.Data == "Back")
                     {
-                        EmployeeManageId = user.EmployeeId,
-                        EndAt = user.EndDate.Value,
-                        StartAt = user.StartDate.Value,
-                        MissedDaysTypeId = (int)user.MissedDayTypeId,
-                        WithoutReason = true,
-                        MissedDays = (int)(user.EndDate - user.StartDate).Value.TotalDays,
-
-                    });
-
-                    if (res != null)
-                    {
-
-                        await _client.DeleteMessageAsync(user.ChatId, update.CallbackQuery.Message.MessageId);
-
-                        await _client.SendTextMessageAsync(user.ChatId, $"Muvoffaqiyatli saqlandi✅");
-                        user.Step = 0;
+                        user.Step--;
+                        user.Step--;
                         _unitOfWork.Save();
+                        goto case 4;
                     }
                     else
                     {
-                        await _client.SendTextMessageAsync(user.ChatId, $"Error ...");
+                        if (int.TryParse(update.CallbackQuery.Data, out int res))
+                        {
+                            user.MissedDayTypeId = res;
+                            user.Step++;
+                            _unitOfWork.Save();
+                        }
+
+                        await _client.DeleteMessageAsync(user.ChatId, update.CallbackQuery.Message.MessageId);
+                        await _client.SendTextMessageAsync(user.ChatId, "Tegishli izoh kiriting:\r\n");
+                        break;
+                    }
+                    
+                }
+            case 7:
+                {
+                    if (update?.Message.Text != null)
+                    {
+
+                        user.Details = update.Message.Text;
+                        _unitOfWork.Save();
+
+                        var res = await _employeeService.CreateByEmployee(new EmployeeCreateRequestDto()
+                        {
+                            EmployeeManageId = user.EmployeeId,
+                            EndAt = user.EndDate.Value,
+                            StartAt = user.StartDate.Value,
+                            MissedDaysTypeId = (int)user.MissedDayTypeId,
+                            WithoutReason = true,
+                            MissedDays = (int)(user.EndDate - user.StartDate).Value.TotalDays,
+                            Details = user.Details
+                        });
+
+                        if (res != null)
+                        {
+                            await _client.SendTextMessageAsync(user.ChatId, $"Muvoffaqiyatli saqlandi✅\nKiritilgan ma'lumot📋:\n{user.StartDate} - {user.EndDate}");
+                            user.Step = 0;
+                            _unitOfWork.Save();
+                        }
+                        else
+                        {
+                            await _client.SendTextMessageAsync(user.ChatId, $"Error ...");
+                        }
+
                     }
                     break;
                 }
@@ -292,22 +348,42 @@ public class UpdateHandler : IUpdateHandler
             inlineKeyboard.Add(weekRow.ToArray());
         }
 
-        //var navigationRow = new[]
-        //{
-        //    InlineKeyboardButton.WithCallbackData("<", $"prev-{month-1}"),
-        //    InlineKeyboardButton.WithCallbackData(">", $"next-{month+1}")
-        //};
-        //inlineKeyboard.Add(navigationRow);
+        if (user.Step > 1)
+        {
+            var navigationRow = new[]
+            {
+                InlineKeyboardButton.WithCallbackData("Back⬅️", "Back"),
+            };
+            inlineKeyboard.Add(navigationRow);
+        }
+
 
         var inlineKeyboardMarkup = new InlineKeyboardMarkup(inlineKeyboard);
 
-        if (user.Step <= 1)
+        if (user.Step <= 1 && callbackQuery == null)
         {
             await _client.SendTextMessageAsync(
                    chatId: user.ChatId,
-                   text: $"Ishda bo'lmagan vaqtingizning boshlanish sanasini tanglang: {new DateTime(year, month, 1).ToString("MMMM yyyy")}",
+                   text: $"Ishda bo'lmagan vaqtingizning boshlanish sanasini tanlang: {new DateTime(year, month, 1).ToString("MMMM yyyy")}",
                    replyMarkup: inlineKeyboardMarkup
                                              );
+        }
+        else if (user.Step <= 1 && callbackQuery.Data == "cancel-time")
+        {
+            await _client.EditMessageReplyMarkupAsync(
+                  chatId: callbackQuery.Message.Chat.Id,
+                  messageId: callbackQuery.Message.MessageId,
+                  replyMarkup: inlineKeyboardMarkup
+                  );
+
+            await _client.EditMessageTextAsync(
+                           chatId: user.ChatId,
+                           messageId: callbackQuery.Message.MessageId,
+                           text: $"Ishda bo'lmagan vaqtingizning boshlanish sanasini tanlang: {new DateTime(year, month, 1).ToString("MMMM yyyy")}",
+                           replyMarkup: inlineKeyboardMarkup
+                                                      );
+            user.Step++;
+            _unitOfWork.Save();
         }
         else
         {
@@ -320,7 +396,7 @@ public class UpdateHandler : IUpdateHandler
             await _client.EditMessageTextAsync(
                            chatId: user.ChatId,
                            messageId: callbackQuery.Message.MessageId,
-                           text: $"Ishda bo'lmagan vaqtingizning tugash sanasini tanglang: {new DateTime(year, month, 1).ToString("MMMM yyyy")}",
+                           text: $"Ishda bo'lmagan vaqtingizning boshlanish sana va vaqti - {user.StartDate}\nIshda bo'lmagan vaqtingizning tugash sanasini tanlang: {new DateTime(year, month, 1).ToString("MMMM yyyy")}",
                            replyMarkup: inlineKeyboardMarkup
                                                       );
 
@@ -380,8 +456,8 @@ public class UpdateHandler : IUpdateHandler
             // Submit/Cancel row
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("Submit", "submit-time"),
-                InlineKeyboardButton.WithCallbackData("Cancel", "cancel-time")
+                InlineKeyboardButton.WithCallbackData("Submit✅", "submit-time"),
+                InlineKeyboardButton.WithCallbackData("Back⬅️", "cancel-time")
             }
         });
 
@@ -389,9 +465,9 @@ public class UpdateHandler : IUpdateHandler
 
     }
 
-    private async Task HandleCallbackQuery(ITelegramBotClient botClient, CallbackQuery callbackQuery, User user)
+    private async Task HandleCallbackQuery(ITelegramBotClient botClient, Update update, User user)
     {
-        switch (callbackQuery.Data)
+        switch (update.CallbackQuery.Data)
         {
             case "increment-hour":
                 user.SelectedHour = (user.SelectedHour + 1) % 24;
@@ -410,26 +486,45 @@ public class UpdateHandler : IUpdateHandler
                 _unitOfWork.Save();
                 break;
             case "submit-time":
-                await ProcessFinalTime(botClient, callbackQuery, user);
+                await ProcessFinalTime(botClient, update.CallbackQuery, user);
                 break;
             case "cancel-time":
                 user.SelectedHour = 0;
-                user.SelectedHour = 0;
+                user.SelectedMinute = 0;
+                if (user.IsFirst)
+                {
+                    user.Step--;
+                    user.Step--;
+                }
+                else
+                    user.Step--;
                 _unitOfWork.Save();
+                await MakeCalendar(_client, update.CallbackQuery, user, DateTime.UtcNow.Year, DateTime.UtcNow.Month);
 
                 break;
         }
 
-        if (callbackQuery.Data != "submit-time")
+        if (update.CallbackQuery.Data != "submit-time" && update.CallbackQuery.Data != "cancel-time" && user.Step < 4)
         {
             await botClient.EditMessageTextAsync(
-            chatId: callbackQuery.Message.Chat.Id,
-            messageId: callbackQuery.Message.MessageId,
-            text: $"Vaqtini tanglang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+            chatId: update.CallbackQuery.Message.Chat.Id,
+            messageId: update.CallbackQuery.Message.MessageId,
+            text: $"Ishda bo'lmagan kuningizni boshlang'ich sanasi - {DateOnly.FromDateTime(user.StartDate.Value)}\nVaqtini tanlang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
             replyMarkup: await GetTimePickerInlineKeyboard(user)
-        );
+            );
 
-            await botClient.AnswerCallbackQueryAsync(callbackQuery.Id);
+            await botClient.AnswerCallbackQueryAsync(update.CallbackQuery.Id);
+        }
+        else if (update.CallbackQuery.Data != "submit-time" && update.CallbackQuery.Data != "cancel-time" && user.Step == 4)
+        {
+            await botClient.EditMessageTextAsync(
+            chatId: update.CallbackQuery.Message.Chat.Id,
+            messageId: update.CallbackQuery.Message.MessageId,
+            text: $"Ishda bo'lmagan vaqtingizning boshlanish sana va vaqti - {user.StartDate}\nIshda bo'lmagan vaqtingizning tugash sanasi - {DateOnly.FromDateTime(user.EndDate.Value)}\nVaqtini tanlang: {user.SelectedHour:00}:{user.SelectedMinute:00}",
+            replyMarkup: await GetTimePickerInlineKeyboard(user)
+            );
+
+            await botClient.AnswerCallbackQueryAsync(update.CallbackQuery.Id);
         }
 
     }
